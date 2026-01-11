@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, session, Response
 import sqlite3
 import os
+import csv
 
 # ----------------------------
 # App configuration
@@ -44,12 +45,12 @@ def init_db():
     connection.close()
 
 
-# ✅ Ensure DB exists at startup
+# ✅ Ensure DB exists
 init_db()
 
 
 # ----------------------------
-# Login route
+# Login
 # ----------------------------
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -66,7 +67,7 @@ def login():
 
 
 # ----------------------------
-# Logout route
+# Logout
 # ----------------------------
 @app.route("/logout")
 def logout():
@@ -75,7 +76,7 @@ def logout():
 
 
 # ----------------------------
-# Main app route (protected)
+# Main route
 # ----------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -92,52 +93,60 @@ def index():
 
         bmi = calculate_bmi(weight)
 
-        connection = get_db_connection()
-        connection.execute("""
+        conn = get_db_connection()
+        conn.execute("""
             INSERT OR REPLACE INTO daily_logs
             (date, food_intake, activity_level, weight, bmi, systolic, diastolic)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
-            date,
-            food_intake,
-            activity,
-            weight,
-            bmi,
-            systolic,
-            diastolic
+            date, food_intake, activity, weight, bmi, systolic, diastolic
         ))
-        connection.commit()
-        connection.close()
+        conn.commit()
+        conn.close()
 
         return redirect("/")
 
-    # Fetch logs
-    connection = get_db_connection()
-    logs = connection.execute(
-        "SELECT * FROM daily_logs ORDER BY date"
-    ).fetchall()
-    connection.close()
-
-    # Chart data
-    dates = [log["date"] for log in logs]
-    weights = [log["weight"] for log in logs]
-    bmis = [log["bmi"] for log in logs]
-    systolics = [log["systolic"] for log in logs]
-    diastolics = [log["diastolic"] for log in logs]
+    conn = get_db_connection()
+    logs = conn.execute("SELECT * FROM daily_logs ORDER BY date").fetchall()
+    conn.close()
 
     return render_template(
         "index.html",
         logs=logs,
-        dates=dates,
-        weights=weights,
-        bmis=bmis,
-        systolics=systolics,
-        diastolics=diastolics
+        dates=[l["date"] for l in logs],
+        weights=[l["weight"] for l in logs],
+        bmis=[l["bmi"] for l in logs],
+        systolics=[l["systolic"] for l in logs],
+        diastolics=[l["diastolic"] for l in logs],
     )
 
 
 # ----------------------------
-# Run the app (Render-compatible)
+# Export CSV
+# ----------------------------
+@app.route("/export")
+def export_csv():
+    if not session.get("logged_in"):
+        return redirect("/login")
+
+    conn = get_db_connection()
+    rows = conn.execute("SELECT * FROM daily_logs ORDER BY date").fetchall()
+    conn.close()
+
+    def generate():
+        yield "date,food_intake,activity,weight,bmi,systolic,diastolic\n"
+        for r in rows:
+            yield f'{r["date"]},"{r["food_intake"]}",{r["activity_level"]},{r["weight"]},{r["bmi"]},{r["systolic"]},{r["diastolic"]}\n'
+
+    return Response(
+        generate(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=fasting_logs.csv"},
+    )
+
+
+# ----------------------------
+# Run app
 # ----------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
