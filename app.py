@@ -6,11 +6,11 @@ import os
 # App configuration
 # ----------------------------
 app = Flask(__name__)
-app.secret_key = "super-secret-key-change-this"
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
 
 HEIGHT_CM = 170
-USERNAME = "admin"
-PASSWORD = "mypassword123"
+USERNAME = os.environ.get("APP_USERNAME", "admin")
+PASSWORD = os.environ.get("APP_PASSWORD", "mypassword123")
 
 
 # ----------------------------
@@ -18,8 +18,7 @@ PASSWORD = "mypassword123"
 # ----------------------------
 def calculate_bmi(weight):
     height_m = HEIGHT_CM / 100
-    bmi = weight / (height_m ** 2)
-    return round(bmi, 2)
+    return round(weight / (height_m ** 2), 2)
 
 
 def get_db_connection():
@@ -36,14 +35,16 @@ def init_db():
             food_intake TEXT,
             activity_level INTEGER,
             weight REAL,
-            bmi REAL
+            bmi REAL,
+            systolic INTEGER,
+            diastolic INTEGER
         )
     """)
     connection.commit()
     connection.close()
 
 
-# ✅ THIS MUST BE HERE (OUTSIDE ANY FUNCTION)
+# ✅ Ensure DB exists at startup
 init_db()
 
 
@@ -53,14 +54,13 @@ init_db()
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
-
-        if username == USERNAME and password == PASSWORD:
+        if (
+            request.form.get("username") == USERNAME
+            and request.form.get("password") == PASSWORD
+        ):
             session["logged_in"] = True
             return redirect("/")
-        else:
-            return render_template("login.html", error="Invalid credentials")
+        return render_template("login.html", error="Invalid credentials")
 
     return render_template("login.html")
 
@@ -84,42 +84,55 @@ def index():
 
     if request.method == "POST":
         date = request.form["date"]
-        food_intake = request.form["food_intake"]
-        activity = request.form["activity"]
+        food_intake = request.form.get("food_intake", "")
+        activity = int(request.form["activity"])
         weight = float(request.form["weight"])
+        systolic = int(request.form["systolic"])
+        diastolic = int(request.form["diastolic"])
 
         bmi = calculate_bmi(weight)
 
         connection = get_db_connection()
-        cursor = connection.cursor()
-
-        cursor.execute("""
+        connection.execute("""
             INSERT OR REPLACE INTO daily_logs
-            (date, food_intake, activity_level, weight, bmi)
-            VALUES (?, ?, ?, ?, ?)
-        """, (date, food_intake, activity, weight, bmi))
-
+            (date, food_intake, activity_level, weight, bmi, systolic, diastolic)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            date,
+            food_intake,
+            activity,
+            weight,
+            bmi,
+            systolic,
+            diastolic
+        ))
         connection.commit()
         connection.close()
 
         return redirect("/")
 
+    # Fetch logs
     connection = get_db_connection()
     logs = connection.execute(
         "SELECT * FROM daily_logs ORDER BY date"
     ).fetchall()
     connection.close()
 
+    # Chart data
     dates = [log["date"] for log in logs]
     weights = [log["weight"] for log in logs]
     bmis = [log["bmi"] for log in logs]
+    systolics = [log["systolic"] for log in logs]
+    diastolics = [log["diastolic"] for log in logs]
 
     return render_template(
         "index.html",
         logs=logs,
         dates=dates,
         weights=weights,
-        bmis=bmis
+        bmis=bmis,
+        systolics=systolics,
+        diastolics=diastolics
     )
 
 

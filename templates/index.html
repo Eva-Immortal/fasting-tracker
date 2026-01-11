@@ -16,10 +16,17 @@
         <textarea name="food_intake" rows="3"></textarea><br><br>
 
         <label>Activity Level (1–10):</label><br>
-        <input type="number" name="activity" min="1" max="10"><br><br>
+        <input type="number" name="activity" min="1" max="10" required><br><br>
 
         <label>Morning Weight (kg):</label><br>
         <input type="number" step="0.1" name="weight" required><br><br>
+
+        <!-- ✅ Blood Pressure Inputs -->
+        <label>Systolic (e.g. 120):</label><br>
+        <input type="number" name="systolic" required><br><br>
+
+        <label>Diastolic (e.g. 80):</label><br>
+        <input type="number" name="diastolic" required><br><br>
 
         <button type="submit">Save Day</button>
     </form>
@@ -36,6 +43,7 @@
                 <th>Activity</th>
                 <th>Weight (kg)</th>
                 <th>BMI</th>
+                <th>Blood Pressure</th>
             </tr>
 
             {% for log in logs %}
@@ -45,6 +53,7 @@
                 <td>{{ log["activity_level"] }}</td>
                 <td>{{ log["weight"] }}</td>
                 <td>{{ log["bmi"] }}</td>
+                <td>{{ log["systolic"] }}/{{ log["diastolic"] }}</td>
             </tr>
             {% endfor %}
         </table>
@@ -52,22 +61,28 @@
         <p>No entries yet.</p>
     {% endif %}
 
+    <hr>
 
     <h2>Progress Charts</h2>
 
-<canvas id="weightChart" width="400" height="200"></canvas>
-<br><br>
-<canvas id="bmiChart" width="400" height="200"></canvas>
+    <canvas id="weightChart" width="400" height="200"></canvas>
+    <br><br>
+    <canvas id="bmiChart" width="400" height="200"></canvas>
+    <br><br>
+    <canvas id="bpChart" width="400" height="200"></canvas>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script>
-    const dates = {{ dates | tojson }};
-    const weights = {{ weights | tojson }};
-    const bmis = {{ bmis | tojson }};
-</script>
+    <!-- ✅ Data passed from Flask -->
+    <script>
+        const dates = {{ dates | tojson }};
+        const weights = {{ weights | tojson }};
+        const bmis = {{ bmis | tojson }};
+        const systolics = {{ systolics | tojson }};
+        const diastolics = {{ diastolics | tojson }};
+    </script>
 
-<script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
 
 </body>
 </html>
