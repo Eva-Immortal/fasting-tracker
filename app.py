@@ -1,12 +1,12 @@
 from flask import Flask, render_template, request, redirect, session
 import sqlite3
+import os
 
 # ----------------------------
 # App configuration
 # ----------------------------
 app = Flask(__name__)
 app.secret_key = "super-secret-key-change-this"
-
 
 HEIGHT_CM = 170
 USERNAME = "admin"
@@ -26,6 +26,8 @@ def get_db_connection():
     connection = sqlite3.connect("fasting.db")
     connection.row_factory = sqlite3.Row
     return connection
+
+
 def init_db():
     connection = get_db_connection()
     connection.execute("""
@@ -40,7 +42,9 @@ def init_db():
     connection.commit()
     connection.close()
 
-    init_db()
+
+# ✅ IMPORTANT: initialize DB at import time
+init_db()
 
 
 # ----------------------------
@@ -75,11 +79,9 @@ def logout():
 # ----------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
-    # Protect the page
     if not session.get("logged_in"):
         return redirect("/login")
 
-    # Handle form submission
     if request.method == "POST":
         date = request.form["date"]
         food_intake = request.form["food_intake"]
@@ -102,14 +104,12 @@ def index():
 
         return redirect("/")
 
-    # Fetch existing logs
     connection = get_db_connection()
     logs = connection.execute(
         "SELECT * FROM daily_logs ORDER BY date"
     ).fetchall()
     connection.close()
 
-    # Prepare chart data
     dates = [log["date"] for log in logs]
     weights = [log["weight"] for log in logs]
     bmis = [log["bmi"] for log in logs]
@@ -124,10 +124,8 @@ def index():
 
 
 # ----------------------------
-# Run the app
+# Run the app (Render-compatible)
 # ----------------------------
-import os
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
