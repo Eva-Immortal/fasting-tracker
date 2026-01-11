@@ -43,7 +43,7 @@ def init_db():
     connection.close()
 
 
-# ✅ IMPORTANT: initialize DB at import time
+# ✅ THIS MUST BE HERE (OUTSIDE ANY FUNCTION)
 init_db()
 
 
