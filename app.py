@@ -7,6 +7,7 @@ import sqlite3
 app = Flask(__name__)
 app.secret_key = "super-secret-key-change-this"
 
+
 HEIGHT_CM = 170
 USERNAME = "admin"
 PASSWORD = "mypassword123"
@@ -25,6 +26,21 @@ def get_db_connection():
     connection = sqlite3.connect("fasting.db")
     connection.row_factory = sqlite3.Row
     return connection
+def init_db():
+    connection = get_db_connection()
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS daily_logs (
+            date TEXT PRIMARY KEY,
+            food_intake TEXT,
+            activity_level INTEGER,
+            weight REAL,
+            bmi REAL
+        )
+    """)
+    connection.commit()
+    connection.close()
+
+    init_db()
 
 
 # ----------------------------
